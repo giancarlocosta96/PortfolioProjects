@@ -1,0 +1,53 @@
+Problem 1: https://platform.stratascratch.com/coding/10352-users-by-avg-session-time?code_type=5
+
+Calculate each user's average session time. 
+A session is defined as the time difference between a page_load and page_exit. 
+For simplicity, assume a user has only 1 session per day and if there are multiple of the same events on that day, 
+consider only the latest page_load and earliest page_exit, with an obvious restriction that load time event should 
+happen before exit time event . Output the user_id and their average session time.
+
+My Solution: 
+
+WITH exit_load_times AS (
+Select e.user_id, e.earliest_exit, l.latest_load
+From 
+(
+Select user_id, Min(timestamp) as earliest_exit, action 
+From facebook_web_log
+Group by user_id, action, day(timestamp)
+Having action='Page_exit') e
+Join (
+Select user_id, MAX(timestamp) as latest_load, action
+From facebook_web_log
+Group by user_id, action, day(timestamp)
+Having action='Page_load') l
+on e.user_id = l.user_id 
+and day(e.earliest_exit)=day(l.latest_load)
+)
+Select user_id, CAST((AVG(DATEDIFF(Millisecond, latest_load, earliest_exit))*1.0/1000) AS Decimal(10,1)) AS average_time 
+From exit_load_times 
+Group by user_id 
+
+Problem 2: https://platform.stratascratch.com/coding/2055-average-customers-per-city?code_type=5
+
+Write a query that will return all cities with more customers than the average number of  
+customers of all cities that have at least one customer. For each such city, return the country name,  
+the city name, and the number of customers.
+
+My Solution: 
+
+With num_customers AS 
+(Select count(*) as customers_per_city
+      From linkedin_customers 
+      Group by city_id
+      Having count(*)>=1)
+Select co.country_name, ci.city_name, count(cu.city_id)
+From linkedin_customers cu
+Join linkedin_city ci
+On cu.city_id=ci.id
+Join linkedin_country co
+On ci.country_id=co.id
+Group by co.country_name, ci.city_name
+Having count(cu.city_id) > (Select AVG(customers_per_city)
+      From num_customers )
+
