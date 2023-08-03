@@ -1,0 +1,201 @@
+Select * 
+From strictlybulk..sales
+/* Columns: Date, Num_Invoices, Sales */
+
+Select * 
+From strictlybulk..Invoice
+/*Columns: Date, Time, Purchase_ID, Invoice_ID, Product_Name, Quantity, Price, Discount, Total, Discount_Reason */
+
+Select * 
+From StrictlyBulk..product 
+/* Columns: Product_ID, Product_Name, Type, Category, Current_Price */
+
+
+--Data Cleaning: Check for missing values  
+
+Select p.product_name as product, i.product_name as invoice
+From StrictlyBulk..Invoice i
+Full Join StrictlyBulk..product p
+On i.product_name = p.product_name 
+Where p.product_name is NULL
+Or i.product_name is NULL 
+
+--Ensuring products were classified correctly by type (i.e. Quantity for packaged products should not have decimal) 
+
+Select i.purchase_id, i.Quantity
+From StrictlyBulk..invoice i
+Join StrictlyBulk..Product p
+on i.Product_Name=p.Product_Name
+Where p.type='Packaged'
+and quantity LIKE '%.%'
+
+--Market Basket Analysis 
+
+Select Product_A, Product_B, count(*) AS Frequency
+From (
+    Select a.Product_Name as Product_A, b.Product_Name as Product_B
+    From StrictlyBulk..Invoice a
+    Join StrictlyBulk..Invoice b
+    On a.Invoice_ID = b.Invoice_ID
+    And a.Purchase_ID <> b.Purchase_ID
+    Where a.Product_Name < b.Product_Name
+) a
+Group by Product_A, Product_B
+Order by Frequency Desc
+
+
+--Average number of items per invoice 
+
+WITH invoice_item_count AS (
+Select date, Invoice_ID, CAST(count(invoice_ID) as float) as num_items
+From strictlybulk..invoice
+Group by Invoice_id, date 
+)
+Select avg(num_items) as avg_invoice_size
+From invoice_item_count 
+/*Filter for days*/
+--Where day(date)>	
+/*Filter for months*/
+--Where month(date)>		
+
+--Top 10 popular products
+
+Select TOP 10 Product_Name, count(*) num_of_purchases 
+From strictlybulk..Invoice
+Group by Product_Name
+Order by num_of_purchases Desc
+
+--Top 10 bulk products purchased 
+
+Select TOP 10 i.Product_Name, count(*) num_of_purchases 
+From strictlybulk..Invoice i
+Join StrictlyBulk..product p
+On i.Product_Name=p.Product_Name
+Where p.type='Bulk'
+Group by i.Product_Name
+Order by num_of_purchases Desc
+
+--Top 10 bulk products purchased by quantity 
+
+Select TOP 10 i.Product_Name, sum(quantity) as total_quantity
+From strictlybulk..Invoice i
+Join StrictlyBulk..product p
+On i.Product_Name=p.Product_Name
+Where p.type='Bulk'
+Group by i.Product_Name
+Order by total_quantity Desc
+
+
+--Top 10 packaged products purchased 
+
+Select TOP 10 i.Product_Name, count(*) num_of_purchases 
+From strictlybulk..Invoice i
+Join StrictlyBulk..product p
+On i.Product_Name=p.Product_Name
+Where p.type='Packaged'
+Group by i.Product_Name
+Order by num_of_purchases Desc
+
+--Top 10 packaged products purchased by quantity 
+
+Select TOP 10 i.Product_Name, sum(quantity) total_quantity
+From strictlybulk..Invoice i
+Join StrictlyBulk..product p
+On i.Product_Name=p.Product_Name
+Where p.type='Packaged'
+Group by i.Product_Name
+Order by total_quantity Desc
+
+
+--Top 10 least popular products
+
+Select TOP 10 Product_Name, count(*) num_of_purchases 
+From strictlybulk..Invoice
+Group by Product_Name
+Order by num_of_purchases 
+
+--Top 10 products generating highest revenue 
+
+Select TOP 10 Product_Name, sum(total) revenue 
+From strictlybulk..Invoice
+Group by Product_Name
+Order by revenue Desc 
+
+--Revenue per Category 
+ 
+Select p.category, sum(i.total) as total_revenue 
+From StrictlyBulk..invoice i 
+Join StrictlyBulk..product p 
+On i.product_name=p.product_name 
+Group by p.category 
+Order by total_revenue Desc 
+
+
+--Quantity of bulk vs packaging purchases 
+
+Select p.type, count(*) as type_count
+From strictlybulk..Product p
+Join strictlyBulk..Invoice i
+On p.product_name=i.product_name  
+Group by type 
+
+
+--Number of bulk purchases per category 
+
+Select p.category, count(*) as num_purchases
+From StrictlyBulk..Invoice i
+Join StrictlyBulk..product p
+On i.product_name=p.product_name 
+Group by p.category, p.type 
+Having p.type='Bulk'
+Order by num_purchases Desc 
+
+--Number of packaging purchases per category 
+
+Select p.category, count(*) as num_purchases
+From StrictlyBulk..Invoice i
+Join StrictlyBulk..product p
+On i.product_name=p.product_name 
+Group by p.category, p.type 
+Having p.type='Packaged'
+Order by num_purchases Desc 
+
+--Bulk vs Packaging with categories 
+
+Select p.type, p.category, count(*) as num_purchases 
+From StrictlyBulk..Invoice i
+Join StrictlyBulk..Product p
+On i.Product_Name=p.Product_Name
+Group by p.type, p.category 
+Order by num_purchases Desc 
+
+--Sales trendy by day of week 
+
+Select Datename(weekday,date) as day_of_week, avg(sales) as average_sales  
+From StrictlyBulk..Sales 
+Group by Datename(weekday,date)
+Order by Datename(weekday,date)
+
+--Discount Analysis 
+
+--Top 10 items among seniors 
+
+Select TOP 10 Product_name, count(*) as num_purchases
+From StrictlyBulk..Invoice
+Where Discount_Reason = 'Senior'
+Group by product_name 
+Order by num_purchases Desc 
+
+--Revenue per type 
+
+Select p.type, SUM(i.total) as Revenue 
+From StrictlyBulk..invoice i
+Join StrictlyBulk..Product p
+on i.Product_Name=p.Product_Name
+Group by p.type 
+
+
+
+
+
+
