@@ -51,3 +51,18 @@ Group by co.country_name, ci.city_name
 Having count(cu.city_id) > (Select AVG(customers_per_city)
       From num_customers )
 
+Problem 3: https://platform.stratascratch.com/coding/10351-activity-rank?code_type=5
+
+Find the email activity rank for each user. Email activity rank is defined by the total number of emails sent. 
+The user with the highest number of emails sent will have a rank of 1, and so on. Output the user, total emails, 
+and their activity rank. Order records by the total emails in descending order. Sort users with the same number 
+of emails in alphabetical order.In your rankings, return a unique value (i.e., a unique rank) even if multiple 
+users have the same number of emails. For tie breaker use alphabetical order of the user usernames.
+
+My Solution: 
+
+Select from_user, count(*) as total_emails,
+ROW_NUMBER() OVER(ORDER BY count(*) desc) as rank 
+From google_gmail_emails
+Group by from_user
+Order by total_emails DESC, from_user 
