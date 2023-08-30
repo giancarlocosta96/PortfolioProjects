@@ -1,0 +1,42 @@
+--Which products should we order more or less of? 
+
+--Determining the low stock for each product 
+
+SELECT p.productCode,
+ROUND(SUM(o.quantityordered)*1.00/p.quantityInStock,2) as low_stock
+FROM products p
+JOIN orderdetails o
+ON p.productCode=o.productCode
+GROUP by p.productcode 
+ORDER by low_stock DESC 
+LIMIT 10
+
+--Determining the product performance of each product 
+
+SELECT productCode, sum(quantityordered*priceEach) as product_performance
+FROM orderdetails
+GROUP by productCode 
+Order by product_performance DESC
+LIMIT 10
+
+--Determining priority products for restocking 
+
+/*Priority products for restocking are those with high product performance and on the brink of being 
+out of stock */
+
+WITH low_stock_table AS (
+SELECT p.productCode,
+ROUND(SUM(o.quantityordered)*1.00/p.quantityInStock,2) as low_stock
+FROM products p
+JOIN orderdetails o
+ON p.productCode=o.productCode
+GROUP by p.productcode 
+ORDER by low_stock DESC 
+LIMIT 10)
+SELECT productCode, sum(quantityordered*priceEach) as product_performance
+FROM orderdetails
+WHERE productCode IN (SELECT productCode
+						FROM low_stock_table)
+GROUP by productCode 
+Order by product_performance DESC
+LIMIT 10
