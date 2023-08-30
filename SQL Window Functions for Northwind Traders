@@ -1,0 +1,76 @@
+ Ranking Employee Sales Performance
+
+With employee_sales AS (
+SELECT e.first_name || ' ' || e.last_name AS full_name,
+SUM(od.unit_price*od.quantity*(1-od.discount)) AS total_sales
+FROM employees e
+Join orders o
+On e.employee_id=o.employee_id
+Join order_details od
+On o.order_id=od.order_id 
+Group by full_name 
+)
+Select *, RANK() OVER(Order by total_sales DESC) 
+From employee_sales
+
+
+Running Total of Monthly Sales
+
+Select DATE_TRUNC('month', order_date) as month, 
+SUM(quantity*unit_price*(1-discount)) AS total_sales,
+SUM(SUM(quantity*unit_price*(1-discount))) OVER(Order by DATE_TRUNC('month', order_date)) AS running_sales
+From orders o
+Join order_details od 
+on o.order_id=od.order_id 
+Group by month
+
+Month-Over-Month Sales Growth
+
+With monthly_sales AS (
+Select DATE_TRUNC('month', order_date) as month, 
+SUM(quantity*unit_price*(1-discount)) AS total_sales
+From orders o
+Join order_details od 
+on o.order_id=od.order_id 
+Group by month
+    ),
+prev_month_sales AS(
+Select month, total_sales, LAG(total_sales) OVER(Order by Month)
+AS prev_month_sales 
+From monthly_sales 
+    )
+Select month, total_sales, ((total_sales-prev_month_sales)/prev_month_sales)*100 as growth_rate
+From prev_month_sales
+
+Identifying High-Value Customers
+
+With customer_value AS (
+Select o.customer_id, o.order_id, SUM(quantity*unit_price*(1-discount)) AS value 
+From orders o
+Join order_details od
+On o.order_id=od.order_id 
+Group by o.customer_id, o.order_id 
+    )
+Select customer_id, order_id, value,
+Case When value>AVG(Value) OVER() Then 'Above Average'
+     When value=AVG(value) OVER() Then 'Average'
+     When value<Avg(value) OVER() then 'Below Average'
+     End As category 
+From customer_value 
+LIMIT 10 
+
+
+Percentage of Sales for Each Category
+
+
+With category_sales AS (
+Select c.category_id, category_name, SUM(od.unit_price*quantity*(1-discount)) AS total_sales
+From categories c
+Join products p
+On c.category_id=p.category_id
+Join order_details od 
+On p.product_id=od.product_id 
+Group by c.category_id, category_name 
+    )
+Select category_id, category_name, total_sales, (total_sales/SUM(total_sales) OVER())*100 AS percentage_of_total
+From category_sales 
