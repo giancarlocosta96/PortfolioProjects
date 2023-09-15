@@ -1,3 +1,7 @@
+/* This is a sample of SQL queries I have created working as a Data Analyst */
+
+
+
 Select * 
 From strictlybulk..sales
 /* Columns: Date, Num_Invoices, Sales */
