@@ -8,7 +8,7 @@ From strictlybulk..Invoice
 
 Select * 
 From StrictlyBulk..product 
-/* Columns: Product_ID, Product_Name, Type, Category, Current_Price */
+/* Columns: Product_ID, Product_Name, Type, Category, Current_Price, Category_ID */
 
 
 --Data Cleaning: Check for missing values  
@@ -43,6 +43,81 @@ From (
 Group by Product_A, Product_B
 Order by Frequency Desc
 
+--Market Basket Analysis with Categories
+
+WITH Invoice_3 AS
+(Select i.*, p.Category, p.Category_ID
+From StrictlyBulk..Invoice i
+Join StrictlyBulk..Product p
+On i.Product_Name=p.product_name
+)
+Select Category_A, Category_B, count(*) AS Frequency
+From (
+    Select a.Category as Category_A, b.Category as Category_B
+    From Invoice_3 a
+    Join Invoice_3 b
+    On a.Invoice_ID = b.Invoice_ID
+    And a.Purchase_ID <> b.Purchase_ID
+    Where a.Category_ID < b.Category_ID
+) a
+Group by Category_A, Category_B
+Order by Frequency Desc
+
+-- Percent change in sales by month, quarter, and year, month sales rank, year to date sales by month
+
+With Monthly_Sales AS (
+Select year(date) as Year, month(date) AS Month, ROUND(Sum(sales),2) AS Month_sales, 
+RANK() OVER(Order by Year(date) DESC, month(date) DESC) as Rank 
+/* Rank is used to omit most recent month since month is not over and therefore incomplete */
+From strictlybulk..sales
+Group by year(date), month(date)
+)
+Select Year, Month, Month_sales,
+ROUND((month_sales - LAG(month_sales) OVER(Order by Year, Month))/ 
+LAG(month_sales) OVER(Order by Year, Month) * 100,2) AS Month_percent_change,
+ROUND((month_sales - LAG(month_sales, 3) OVER(Order by Year, Month))/ 
+LAG(month_sales, 3) OVER(Order by Year, Month) * 100,2) AS Quarter_percent_change,
+ROUND((month_sales - LAG(month_sales, 12) OVER(Order by Year, Month))/ 
+LAG(month_sales, 12) OVER(Order by Year, Month) * 100,2) AS Year_percent_change,
+RANK() OVER(Partition by Year Order by Month_sales DESC) AS month_sales_rank,
+SUM(Month_sales) OVER(Partition by Year Order by Year, Month) AS Year_to_date_sales
+From Monthly_sales 
+Where Rank>1
+Order by Year Desc, Month Desc
+
+
+
+--Percentage of sales for each category
+
+With Category_sales AS
+(
+Select Category_ID, Category, Round(Sum(total),2) AS Total_sales
+From StrictlyBulk..Invoice i
+Join StrictlyBulk..Product p
+On i.Product_name=p.Product_name 
+Group by Category_ID, Category
+)
+Select *, ROUND((total_sales/Sum(total_sales) OVER())*100,2) AS Percentage_of_total 
+From Category_sales 
+Order by Percentage_of_total DESC 
+
+
+--Top 5 Products Sold in Each Category
+
+With Product_sales AS (
+Select Category, Product_ID, p.Product_Name, Round(Sum(total),2) AS Total_sales,
+ROW_NUMBER() OVER (Partition By Category Order by Round(Sum(total),2) DESC) as Row_number
+From StrictlyBulk..Invoice i
+Join StrictlyBulk..Product p
+On i.Product_name=p.Product_name 
+Group by Category, Product_ID, p.Product_Name
+)
+Select Category, Product_ID, Product_Name, Total_sales 
+From Product_sales 
+Where Row_number <= 5 
+AND Category NOT IN('Bags and Containers', 'Deposits')
+/* The categories 'Bags and Containers' and 'Deposits' are not relavent for this analysis */
+
 
 --Average number of items per invoice 
 
@@ -56,7 +131,9 @@ From invoice_item_count
 /*Filter for days*/
 --Where day(date)>	
 /*Filter for months*/
---Where month(date)>		
+--Where month(date)>	
+
+
 
 --Top 10 popular products
 
