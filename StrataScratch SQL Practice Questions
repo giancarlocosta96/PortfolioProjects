@@ -66,3 +66,40 @@ ROW_NUMBER() OVER(ORDER BY count(*) desc) as rank
 From google_gmail_emails
 Group by from_user
 Order by total_emails DESC, from_user 
+
+Problem 4: https://platform.stratascratch.com/coding/10322-finding-user-purchases?code_type=5
+
+Write a query that'll identify returning active users. A returning active user is a user that has made a second purchase within 
+7 days of any other of their purchases. Output a list of user_ids of these returning active users.
+
+My Solution: 
+
+With purchase_days AS(
+Select user_id, created_at, 
+Day(LEAD(created_at) OVER(Partition by user_id Order by created_at)) - Day(created_at) AS days_between_purchase
+From amazon_transactions
+)
+Select Distinct user_id
+From purchase_days
+Where days_between_purchase <= 7
+
+Problem 5: https://platform.stratascratch.com/coding/10319-monthly-percentage-difference?code_type=5
+
+Given a table of purchases by date, calculate the month-over-month percentage change in revenue. 
+The output should include the year-month date (YYYY-MM) and percentage change, rounded to the 2nd decimal point, 
+and sorted from the beginning of the year to the end of the year.
+The percentage change column will be populated from the 2nd month forward and can be calculated as 
+((this month's revenue - last month's revenue) / last month's revenue)*100.
+
+My Solution: 
+
+With monthly_revenue AS(
+select FORMAT(CONVERT(date, created_at), 'yyyy-MM') AS month, 
+SUM(value) AS total_revenue
+from sf_transactions
+Group by FORMAT(CONVERT(date, created_at), 'yyyy-MM')
+)
+Select month,  
+ROUND(100*(CAST(total_revenue - LAG(total_revenue) OVER(Order by month) AS float))/
+CAST(LAG(total_revenue) OVER(Order by month) AS float),2) AS Percent_change
+From monthly_revenue
